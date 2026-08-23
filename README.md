@@ -3,6 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![ObsPy](https://img.shields.io/badge/ObsPy-%3E%3D1.5.0-4B8BBE)](https://docs.obspy.org/)
+[![CI](https://github.com/PauloXavi/mseed-navigator/actions/workflows/ci.yml/badge.svg)](https://github.com/PauloXavi/mseed-navigator/actions/workflows/ci.yml)
 
 mSEED Navigator is an interactive application for miniSEED waveform inspection, processing, quality control, and visualization. It combines a Python signal-processing pipeline with a modern web interface for reviewing metadata, metrics, spectral products, candidate STA/LTA triggers, and generated figures.
 
