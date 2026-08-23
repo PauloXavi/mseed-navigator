@@ -1,0 +1,58 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Environment and local config
+.env
+.env.*
+*.local
+.dev.vars
+
+# Node / build output
+node_modules/
+dist/
+dist-ssr/
+build/
+.output/
+.vinxi/
+.nitro/
+.tanstack/
+.cache/
+public/backend-results/
+
+# Archives and generated/private artifacts
+*.zip
+__MACOSX/
+relatorio_tecnico*
+codigo_fonte*
+invision-logo*
+envision-logo*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor and OS files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+.ipynb_checkpoints/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Wrangler / Cloudflare local state
+.wrangler/
