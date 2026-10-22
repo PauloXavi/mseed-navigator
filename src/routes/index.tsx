@@ -31,7 +31,7 @@ import { formatRelative } from "@/lib/format";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Projetos — mSEED Navigator" },
+      { title: "Projetos — miniSEED Studio" },
       {
         name: "description",
         content:
@@ -81,12 +81,9 @@ function DashboardPage() {
       <header className="border-b bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-12 w-16 items-center justify-center gap-1 rounded-md border bg-muted text-foreground shadow-sm">
-              <Waves className="h-5 w-5 text-primary" aria-hidden="true" />
-              <span className="text-sm font-semibold">MS</span>
-            </div>
+            <img src="/logo-mark.png" alt="" className="h-12 w-12 shrink-0 object-contain" />
             <div>
-              <h1 className="text-lg font-semibold leading-tight">mSEED Navigator</h1>
+              <h1 className="text-lg font-semibold leading-tight">miniSEED Studio</h1>
               <p className="text-xs text-muted-foreground">Análise de dados microssísmicos</p>
             </div>
           </div>

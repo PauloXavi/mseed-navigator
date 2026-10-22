@@ -4,7 +4,7 @@
 //   extractArchive(projectId, uploadId) -> resolves when files are scanned
 
 import type { UploadRecord } from "./types";
-import { nowIso, readKey, uid, writeKey } from "./store";
+import { nowIso, readList, uid, writeKey } from "./store";
 import { generateMockMseedFiles } from "./mockData";
 import { writeFiles } from "./files";
 import { updateProject } from "./projects";
@@ -12,13 +12,13 @@ import { updateProject } from "./projects";
 const KEY = "mss.uploads";
 
 export function listUploads(projectId: string): UploadRecord[] {
-  return readKey<UploadRecord[]>(KEY, [])
+  return readList<UploadRecord>(KEY)
     .filter((u) => u.projectId === projectId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 function saveUpload(u: UploadRecord) {
-  const all = readKey<UploadRecord[]>(KEY, []);
+  const all = readList<UploadRecord>(KEY);
   const idx = all.findIndex((x) => x.id === u.id);
   if (idx === -1) all.push(u);
   else all[idx] = u;
@@ -61,7 +61,7 @@ export async function extractArchive(
   uploadId: string,
   onProgress?: (u: UploadRecord) => void,
 ): Promise<UploadRecord> {
-  const all = readKey<UploadRecord[]>(KEY, []);
+  const all = readList<UploadRecord>(KEY);
   const upload = all.find((u) => u.id === uploadId);
   if (!upload) throw new Error("Upload not found");
 

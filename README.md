@@ -1,49 +1,64 @@
-# mSEED Navigator
+<p align="center">
+  <img src="public/logo.png" alt="miniSEED Studio" width="320" />
+</p>
 
-[![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+# miniSEED Studio
+
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![ObsPy](https://img.shields.io/badge/ObsPy-%3E%3D1.5.0-4B8BBE)](https://docs.obspy.org/)
 [![CI](https://github.com/PauloXavi/mseed-navigator/actions/workflows/ci.yml/badge.svg)](https://github.com/PauloXavi/mseed-navigator/actions/workflows/ci.yml)
 
-mSEED Navigator is an interactive application for miniSEED waveform inspection, processing, quality control, and visualization. It combines a Python signal-processing pipeline with a modern web interface for reviewing metadata, metrics, spectral products, candidate STA/LTA triggers, and generated figures.
+miniSEED Studio (repository `mseed-navigator`) is an interactive application for miniSEED waveform inspection, processing, quality control, and visualization. It combines a Python signal-processing pipeline with a web interface for reviewing metadata, quality metrics, spectral products, candidate STA/LTA triggers, and generated figures.
+
+The interface is in Portuguese. See [CHANGELOG.md](CHANGELOG.md) for what changed in the latest revision.
 
 ## Overview
 
-Waveform archives often need several preparation steps before they can be reviewed efficiently. mSEED Navigator provides a reproducible path from miniSEED files to structured quality-control tables, processed signal products, and browser-based visualizations.
+Waveform archives often need several preparation steps before they can be reviewed efficiently. miniSEED Studio provides a reproducible path from miniSEED files to structured quality-control tables, processed signal products, and browser-based visualizations.
 
 ```text
 miniSEED files
     -> ObsPy reading and metadata extraction
-    -> signal preprocessing and filtering
-    -> quality-control and spectral metrics
-    -> CSV tables and PNG figures
+    -> continuous record on an absolute time grid (gaps, overlaps, clock drift)
+    -> despiking, preprocessing, notch and frequency filtering
+    -> quality-control and spectral metrics, STA/LTA candidates
+    -> CSV tables, PNG figures and a parameters file
     -> web results API
     -> interactive visualization
 ```
 
-The Python backend performs the scientific computation. The web application can invoke that pipeline for the bundled demonstration data, expose the resulting artifacts through server routes, and present them as tables, charts, time-series views, and downloadable packages.
+The Python backend performs the scientific computation. The web application runs that pipeline with the parameters chosen on screen, exposes the resulting artifacts through server routes, and presents them as tables, charts, time-series views, and downloadable packages.
 
 ## Features
 
-- Recursive discovery and reading of miniSEED-compatible files with ObsPy.
-- Preservation and reporting of network, station, location, channel, UTC timing, sampling rate, and sample count metadata.
-- Per-file and global waveform statistics, including minimum, maximum, mean, standard deviation, percentiles, median, and median absolute deviation.
-- Gap reporting through ObsPy stream metadata.
-- Robust spike detection based on the median absolute deviation, with linear interpolation of flagged samples.
-- Signal preprocessing with mean removal, linear detrending, cosine tapering, and zero-phase Butterworth band-pass filtering.
-- Power spectral density estimation using Welch's method.
-- Integrated energy summaries for predefined frequency bands.
-- Spectrogram generation for a processed waveform window.
-- Classic STA/LTA candidate-trigger detection with configurable windows and trigger thresholds.
-- CSV exports for metadata, quality-control metrics, spikes, gaps, spectra, band energy, and STA/LTA candidates.
-- PNG figures for waveform overview, raw-versus-processed comparisons, PSD, spectrogram, quality indicators, STA/LTA response, and the highest-ranked candidate window.
-- Web views for file metadata, UTC-range waveform inspection, downsampled time series, result tables, charts, generated figures, and ZIP exports.
+### Scientific pipeline
+
+- Recursive discovery and reading of miniSEED-compatible files with ObsPy (decoded from memory for speed).
+- Continuous record built from each file's own start time: real gaps are filled explicitly (`--gap-fill`) and flagged, overlaps are reported, and small clock drift between contiguous files is aligned and reported in ppm instead of being counted as gaps.
+- Per-file and global statistics: minimum, maximum, mean, standard deviation (with and without spikes), percentiles, median, and median absolute deviation.
+- Spike (glitch) removal with a moving-median residual, MAD threshold, local Hampel confirmation, and a maximum width, so the peaks of real events are preserved. The previous whole-record method remains available as `--spike-method global`.
+- Preprocessing with mean removal, linear detrending, and a cosine taper limited to a fraction of the record.
+- Frequency filter: band-pass (default), high-pass, low-pass, or band-stop; Butterworth (default) or Bessel; zero-phase by default.
+- Notch filters at one or more frequencies (for example, 60 Hz mains), applied before the frequency filter.
+- Power spectral density with Welch's method and energy in configurable frequency bands, cut at Nyquist.
+- Spectrogram of a processed window.
+- Classic or recursive STA/LTA candidate triggers with duration limits, SNR, dominant frequency, and quality flags (`edge`, `gap`, optional `low_snr`); `--min-event-snr` discards weak candidates.
+- Fixed-length QC windows (`--qc-window-seconds`) with std, percentiles, peak, band RMS, spike count, filled fraction, and flat-signal detection.
+- `parametros_processamento.json` with the parameters, effective values, warnings, software versions, and run time.
+
+### Web application
+
+- Projects stored in the browser, file metadata, and a metadata dialog for each file.
+- Inspection of any UTC window with min/max downsampling, real gaps, and an optional live filter (type, band, and notch).
+- Processing tab that runs the real pipeline with the parameters on screen, with progress and cancellation.
+- Results with summaries, QC charts, gaps, spikes, PSD, band energy, STA/LTA candidates, figures, and the run parameters; selecting an event or spike shows its waveform.
+- Help buttons (!) with plain-language explanations of every technical term.
+- ZIP exports of tables, figures, or both.
 
 ## Demo Data
 
 The three files in `examples/data/` are entirely synthetic. They are generated from scratch by `examples/generate_synthetic_mseed.py` exclusively for demonstration and automated testing; they are not derived from field measurements or any external dataset.
-
-The generator uses the following fictitious metadata and signal definition:
 
 | Field          | Value                                                 |
 | -------------- | ----------------------------------------------------- |
@@ -58,7 +73,7 @@ The generator uses the following fictitious metadata and signal definition:
 | Total samples  | `18,000`                                              |
 | File layout    | Three consecutive 60-second files, 6,000 samples each |
 
-The waveform combines deterministic 3 Hz and 11 Hz sinusoidal components, seeded random noise, and two synthetic transient pulses. A fixed random seed makes the dataset reproducible.
+The waveform combines deterministic 3 Hz and 11 Hz sinusoidal components, seeded random noise, two band-limited transients (which the pipeline must keep and detect), and two instrumental glitches of one and two samples (which despiking must remove). A fixed random seed makes the dataset reproducible.
 
 ## Architecture
 
@@ -66,18 +81,18 @@ The waveform combines deterministic 3 Hz and 11 Hz sinusoidal components, seeded
 backend/   Python batch processing and artifact generation
 examples/  Reproducible synthetic miniSEED generator and sample files
 src/       React, TypeScript, TanStack routes, server handlers, and UI
-tests/     Pytest coverage for miniSEED reading and backend processing
+tests/     Pytest suite for the backend
 ```
 
-The backend is a standalone Python batch pipeline. It reads miniSEED files, computes waveform and quality-control products, and writes CSV tables and PNG figures.
+The backend is a standalone Python batch pipeline. It reads miniSEED files, computes waveform and quality-control products, and writes CSV tables, PNG figures, and a parameters file.
 
-The web layer is a TanStack Start application. Its server routes can run the Python pipeline against `examples/data/`, parse the generated tables, extract UTC waveform windows, and return JSON to the React interface. Runtime artifacts are written under `public/backend-results/`, which is excluded from version control.
+The web layer is a TanStack Start application. Its server routes run the Python pipeline, parse the generated tables, extract UTC waveform windows, and return JSON to the React interface. The data folder is `MSEED_DATA_DIR` if set, else a `dados/` folder next to the repository (`../dados`), else `examples/data/`. Runtime artifacts are written under `public/backend-results/` and `.cache/`, both excluded from version control.
 
 ## Scientific / Geophysical Context
 
 miniSEED is a compact format used to store sampled time-series data and basic waveform metadata such as station codes, channels, timing, and sampling rate. It is widely used for seismic and other geophysical waveform exchange.
 
-In seismology and microseismic monitoring, waveform inspection and quality control help identify acquisition gaps, impulsive anomalies, frequency content, and intervals that may warrant closer review. mSEED Navigator supports these preparation and review tasks. Its STA/LTA output identifies threshold-based candidate windows only; it does not locate, classify, or interpret seismic events.
+In seismology and microseismic monitoring, waveform inspection and quality control help identify acquisition gaps, timing problems, instrumental glitches, frequency content, and intervals that may warrant closer review. miniSEED Studio supports these preparation and review tasks. Its STA/LTA output identifies threshold-based candidate windows only; it does not locate, classify, or interpret seismic events.
 
 ## Tech Stack
 
@@ -95,7 +110,7 @@ In seismology and microseismic monitoring, waveform inspection and quality contr
 - React
 - TypeScript
 - TanStack Start, Router, and Query
-- Vite
+- Vite and Vitest
 - Tailwind CSS
 - Radix UI
 - Recharts
@@ -112,6 +127,8 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+The web server uses `.venv/bin/python` (or `../.venv/bin/python`) when it exists, and `python3` otherwise.
 
 ### Frontend
 
@@ -133,7 +150,14 @@ python backend/mseed_processing.py \
   --output-dir public/backend-results/demo-public
 ```
 
-This creates CSV tables in `public/backend-results/demo-public/tabelas/` and PNG figures in `public/backend-results/demo-public/figuras/`.
+This creates CSV tables and `parametros_processamento.json` in `public/backend-results/demo-public/tabelas/` and PNG figures in `public/backend-results/demo-public/figuras/`. Run `python backend/mseed_processing.py --help` for every option, for example:
+
+```bash
+python backend/mseed_processing.py --data-dir examples/data --output-dir out \
+  --filter-type bandpass --freqmin 1 --freqmax 45 \
+  --notch --notch-freqs 60 \
+  --low-snr-flag --low-snr-threshold 3
+```
 
 ### Start the web application
 
@@ -143,55 +167,20 @@ With the Python environment prepared and the Node.js dependencies installed, run
 npm run dev
 ```
 
-Open the local URL printed by Vite. The server route `/api/results/demo-public` can generate or read the demonstration results from the bundled synthetic data.
+Open the local URL printed by Vite, create a project, and process it from the **Processamento** tab.
 
 ## Tests
 
-Install the development requirements and run the Python test suite:
-
 ```bash
 pip install -r requirements-dev.txt
-pytest
-```
-
-Run the frontend quality checks:
-
-```bash
+pytest                 # backend
+npm test               # server routes and browser storage (Vitest)
+npx tsc --noEmit       # type check
 npm run lint
 npm run build
 ```
 
-The current pytest suite verifies synthetic miniSEED discovery and reading, trace metadata, segment merging, sampling rate, sample counts, start time, complete backend execution, expected artifacts, empty-file-list handling, and invalid-file handling.
-
-## Example Workflow
-
-The following workflow uses only the synthetic files in `examples/data/`:
-
-1. Optionally regenerate the deterministic demonstration files:
-
-   ```bash
-   python examples/generate_synthetic_mseed.py
-   ```
-
-2. Run the backend pipeline:
-
-   ```bash
-   python backend/mseed_processing.py \
-     --data-dir examples/data \
-     --output-dir public/backend-results/demo-public
-   ```
-
-3. Start the web application:
-
-   ```bash
-   npm run dev
-   ```
-
-4. Open the URL shown by Vite, create a local project, and open its **Results** tab to review the generated metadata, quality-control summaries, spectral products, candidate STA/LTA windows, and figures.
-
-## Screenshot
-
-A reviewed screenshot of the application interface will be added in a future documentation update. No placeholder image or broken asset link is included here.
+The pytest suite covers miniSEED reading, the continuous record (gaps, overlaps, clock drift), despiking, filters and notch, PSD and band energy, STA/LTA and its quality flags, parameter validation, the time-series extraction script, and the complete pipeline on the synthetic data. The Vitest suite calls the real server routes against a temporary folder with a fake Python, covering file-name validation, safe replacement of results, error messages, exports, and corrupted browser storage. The same checks run in CI.
 
 ## Project Structure
 
@@ -204,15 +193,20 @@ A reviewed screenshot of the application interface will be added in a future doc
 |   |-- generate_synthetic_mseed.py
 |   `-- README.md
 |-- public/
-|   `-- favicon.svg               # Project-owned neutral waveform icon
+|   |-- logo.png                  # Full logo
+|   |-- logo-mark.png             # Logo without the name (app header)
+|   `-- favicon.*, apple-touch-icon.png
 |-- src/
-|   |-- components/               # Project views, result panels, and UI controls
+|   |-- __tests__/                # Vitest suite
+|   |-- components/               # Project views, result panels, help buttons, and UI controls
+|   |-- lib/glossary.ts           # Texts of the help buttons (!)
 |   |-- routes/                   # Web pages and server API routes
 |   |-- server/                   # Python process integration and time-series extraction
-|   |-- services/                 # Browser-side project and workflow state
+|   |-- services/                 # Browser-side project, parameter, and workflow state
 |   `-- styles.css
 |-- tests/
 |   `-- test_mseed_processing.py  # Pytest backend suite
+|-- CHANGELOG.md
 |-- package.json                  # Frontend scripts and dependencies
 |-- requirements.txt              # Python runtime dependencies
 `-- requirements-dev.txt          # Python test dependencies
@@ -220,10 +214,10 @@ A reviewed screenshot of the application interface will be added in a future doc
 
 ## Limitations
 
-- The batch pipeline currently accepts one unique network/station/location/channel trace ID per run. Multi-channel datasets must be processed separately.
-- The primary pipeline is intended for ordered, contiguous segments. Gaps are reported, but the current batch concatenation is not a general gap-aware or multi-trace processing workflow.
-- The bundled web demonstration reads `examples/data/`; browser upload, extraction progress, and processing-job progress are currently simulated and are not connected to arbitrary uploaded miniSEED files.
+- One network/station/location/channel trace ID per run. Multi-channel datasets must be processed separately.
+- Browser upload and ZIP extraction are still simulated: processing always uses the server's data folder.
 - Project and workflow state are stored in browser local storage rather than a database or multi-user service.
+- The server runs Python as a child process, so it needs a Node.js host with Python installed; serverless targets without child processes are not supported.
 - No instrument-response removal, physical-unit conversion, phase picking, event classification, hypocenter location, inversion, tomography, or automated geological interpretation is implemented.
 - STA/LTA detections are parameter-dependent candidate windows and require expert review.
 - ZIP downloads from the web interface require a compatible system `zip` command.

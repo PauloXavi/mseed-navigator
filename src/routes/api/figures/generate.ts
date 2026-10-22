@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { ensureProjectResults } from "@/server/backend-results";
+import { ensureProjectResults, errorResponse } from "@/server/backend-results";
 
 export const Route = createFileRoute("/api/figures/generate")({
   server: {
@@ -24,9 +24,9 @@ export const Route = createFileRoute("/api/figures/generate")({
 async function handleGenerateFigures(projectId: string, force: boolean) {
   try {
     const result = await ensureProjectResults(projectId, force);
-    return Response.json(result);
+    // Only public URLs are returned; server paths stay on the server.
+    return Response.json({ figures: result.figures });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Falha ao gerar figuras";
-    return Response.json({ error: message }, { status: 500 });
+    return errorResponse(error, "Falha ao gerar figuras");
   }
 }

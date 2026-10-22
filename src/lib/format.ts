@@ -1,5 +1,5 @@
 export function formatBytes(n: number | null | undefined): string {
-  if (!Number.isFinite(n)) return "—";
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
   const units = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
   let v = n;
@@ -24,6 +24,14 @@ export function formatUtc(iso: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   return d.toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
+}
+
+/** Full UTC timestamp with milliseconds ("2026-01-01 00:03:12.345 UTC"), shifted by `offsetS`. */
+export function formatUtcMs(iso: string | undefined, offsetS = 0): string {
+  if (!iso) return "—";
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms) || !Number.isFinite(offsetS)) return "—";
+  return new Date(ms + offsetS * 1000).toISOString().replace("T", " ").replace("Z", " UTC");
 }
 
 export function formatRelative(iso: string): string {

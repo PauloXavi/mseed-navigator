@@ -29,7 +29,7 @@ export function ExportTab({ projectId }: Props) {
     {
       key: "csv",
       label: "Baixar CSVs",
-      description: "Todas as tabelas em formato CSV",
+      description: "Tabelas CSV e parâmetros do processamento (JSON)",
       icon: FileText,
       opts: { includeCsv: true },
     },
@@ -95,10 +95,10 @@ export function ExportTab({ projectId }: Props) {
                 key={a.name}
                 className="flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-xs"
               >
-                {a.kind === "csv" ? (
-                  <FileText className="h-3.5 w-3.5 text-info" />
-                ) : (
+                {a.kind === "figure" ? (
                   <FileArchive className="h-3.5 w-3.5 text-chart-3" />
+                ) : (
+                  <FileText className="h-3.5 w-3.5 text-info" />
                 )}
                 <span className="font-mono">{a.name}</span>
               </div>

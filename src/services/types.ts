@@ -1,4 +1,4 @@
-// Domain types for mSEED Navigator.
+// Domain types for miniSEED Studio.
 // Kept UI-agnostic so a future Python/ObsPy worker can implement the same
 // service contracts without touching components.
 
@@ -60,20 +60,52 @@ export interface MseedFile {
   status: MseedFileStatus;
 }
 
+export type SpikeMethod = "residual" | "global";
+export type GapFillMethod = "interpolate" | "median";
+export type StaLtaMethod = "classic" | "recursive";
+export type FilterType = "bandpass" | "highpass" | "lowpass" | "bandstop";
+export type FilterFamily = "butterworth" | "bessel";
+
+// Mirrors the CLI options of backend/mseed_processing.py (see buildPipelineArgs).
 export interface ProcessingParameters {
+  filterType: FilterType;
+  filterFamily: FilterFamily;
   freqmin: number;
   freqmax: number;
+  filterOrder: number;
+  zeroPhase: boolean;
+  /** Removes isolated frequencies (e.g. 60 Hz mains hum) before the frequency filter. */
+  notch: boolean;
+  notchFreqs: number[];
+  notchQ: number;
+  spikeMethod: SpikeMethod;
   spikeZ: number;
+  spikeWindow: number;
+  spikeMaxWidth: number;
   taperSeconds: number;
+  taperMaxFraction: number;
+  gapFill: GapFillMethod;
+  qcWindowSeconds: number;
+  welchNperseg: number;
+  staltaMethod: StaLtaMethod;
   sta: number;
   lta: number;
   triggerOn: number;
   triggerOff: number;
+  maxEventSeconds: number;
+  minEventSeconds: number;
+  /** Marks events with SNR below `lowSnrThreshold` with the "low_snr" flag (kept in the table). */
+  lowSnrFlag: boolean;
+  lowSnrThreshold: number;
+  /** Drops events with SNR below this value (0 = keep all). */
+  minEventSnr: number;
+  traceId: string;
   steps: {
     despike: boolean;
     demean: boolean;
     detrend: boolean;
     taper: boolean;
+    /** Frequency filter on/off (name kept for saved jobs; the type is `filterType`). */
     bandpass: boolean;
     psdWelch: boolean;
     spectrogram: boolean;
@@ -82,14 +114,35 @@ export interface ProcessingParameters {
 }
 
 export const DEFAULT_PARAMETERS: ProcessingParameters = {
+  filterType: "bandpass",
+  filterFamily: "butterworth",
   freqmin: 1.0,
   freqmax: 45.0,
+  filterOrder: 4,
+  zeroPhase: true,
+  notch: false,
+  notchFreqs: [60],
+  notchQ: 30,
+  spikeMethod: "residual",
   spikeZ: 20.0,
+  spikeWindow: 7,
+  spikeMaxWidth: 3,
   taperSeconds: 30.0,
+  taperMaxFraction: 0.05,
+  gapFill: "interpolate",
+  qcWindowSeconds: 60.0,
+  welchNperseg: 8192,
+  staltaMethod: "classic",
   sta: 0.5,
   lta: 5.0,
   triggerOn: 8.0,
   triggerOff: 2.0,
+  maxEventSeconds: 5.0,
+  minEventSeconds: 0.0,
+  lowSnrFlag: false,
+  lowSnrThreshold: 3.0,
+  minEventSnr: 0.0,
+  traceId: "",
   steps: {
     despike: true,
     demean: true,
@@ -124,7 +177,7 @@ export const PROCESSING_STEPS: { key: ProcessingStep; label: string }[] = [
   { key: "qc", label: "QC / Metadados" },
   { key: "despike", label: "Spikes" },
   { key: "preprocess", label: "Pré-processamento" },
-  { key: "bandpass", label: "Filtro passa-banda" },
+  { key: "bandpass", label: "Filtragem" },
   { key: "psd", label: "PSD Welch" },
   { key: "stalta", label: "STA/LTA" },
   { key: "figures", label: "Gráficos" },

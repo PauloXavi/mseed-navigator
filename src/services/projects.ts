@@ -1,12 +1,43 @@
 // Project CRUD (mock). Replace with Supabase queries against `projects`.
 
-import type { Project } from "./types";
-import { nowIso, readKey, uid, writeKey } from "./store";
+import type { Project, ProjectStatus } from "./types";
+import { nowIso, readList, uid, writeKey } from "./store";
 
 const KEY = "mss.projects";
+const PROJECT_STATUSES: ProjectStatus[] = [
+  "created",
+  "uploading",
+  "ready",
+  "processing",
+  "completed",
+  "error",
+];
+
+/** Fills fields missing from projects saved by older versions (or edited by hand). */
+function normalizeProject(raw: Partial<Project>): Project | null {
+  if (typeof raw.id !== "string" || !raw.id) return null;
+  const epoch = new Date(0).toISOString();
+  return {
+    ...raw,
+    id: raw.id,
+    name: typeof raw.name === "string" && raw.name ? raw.name : "Projeto sem nome",
+    status: PROJECT_STATUSES.includes(raw.status as ProjectStatus)
+      ? (raw.status as ProjectStatus)
+      : "created",
+    fileCount: typeof raw.fileCount === "number" ? raw.fileCount : 0,
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : epoch,
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : epoch,
+  };
+}
+
+function readProjects(): Project[] {
+  return readList<Partial<Project>>(KEY)
+    .map(normalizeProject)
+    .filter((p): p is Project => p !== null);
+}
 
 export function listProjects(): Project[] {
-  return readKey<Project[]>(KEY, []).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return readProjects().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export function getProject(id: string): Project | undefined {
@@ -33,14 +64,14 @@ export function createProject(input: CreateProjectInput): Project {
     createdAt: now,
     updatedAt: now,
   };
-  const all = readKey<Project[]>(KEY, []);
+  const all = readProjects();
   all.push(project);
   writeKey(KEY, all);
   return project;
 }
 
 export function updateProject(id: string, patch: Partial<Project>): Project | undefined {
-  const all = readKey<Project[]>(KEY, []);
+  const all = readProjects();
   const idx = all.findIndex((p) => p.id === id);
   if (idx === -1) return undefined;
   all[idx] = { ...all[idx], ...patch, updatedAt: nowIso() };
@@ -51,7 +82,7 @@ export function updateProject(id: string, patch: Partial<Project>): Project | un
 export function deleteProject(id: string) {
   writeKey(
     KEY,
-    readKey<Project[]>(KEY, []).filter((p) => p.id !== id),
+    readProjects().filter((p) => p.id !== id),
   );
   removeProjectRows("mss.files", id);
   removeProjectRows("mss.uploads", id);
@@ -60,7 +91,7 @@ export function deleteProject(id: string) {
 }
 
 function removeProjectRows(key: string, projectId: string) {
-  const rows = readKey<Array<{ projectId?: string }>>(key, []);
+  const rows = readList<{ projectId?: string }>(key);
   writeKey(
     key,
     rows.filter((row) => row.projectId !== projectId),

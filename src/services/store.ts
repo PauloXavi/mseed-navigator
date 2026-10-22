@@ -18,6 +18,16 @@ export function readKey<T>(key: string, fallback: T): T {
   }
 }
 
+/**
+ * Reads a stored list. Anything that is not a list of objects (corrupted value, older
+ * format) yields [] or is skipped, so a bad localStorage entry cannot crash a page.
+ */
+export function readList<T extends object>(key: string): T[] {
+  const value = readKey<unknown>(key, []);
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is T => typeof item === "object" && item !== null);
+}
+
 export function writeKey<T>(key: string, value: T) {
   const raw = JSON.stringify(value);
   if (isBrowser()) window.localStorage.setItem(key, raw);
