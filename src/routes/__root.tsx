@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 
@@ -33,7 +34,8 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+// The router types the caught value as `unknown` (anything can be thrown), not as Error.
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
 
@@ -73,13 +75,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "mSEED Navigator" },
+      { title: "miniSEED Studio" },
       {
         name: "description",
         content:
           "Ambiente técnico para leitura, controle de qualidade, processamento e análise de dados microssísmicos em formato MiniSEED.",
       },
-      { property: "og:title", content: "mSEED Navigator" },
+      { property: "og:title", content: "miniSEED Studio" },
       {
         property: "og:description",
         content:
@@ -93,7 +95,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
   }),
   shellComponent: RootShell,

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { ensureProjectResults } from "@/server/backend-results";
+import { PARAMS_FILE, ensureProjectResults, errorResponse } from "@/server/backend-results";
+import { bool, nullableNumber, number, readCsv, text } from "@/server/csv";
 
 export const Route = createFileRoute("/api/results/$projectId")({
   server: {
@@ -11,8 +12,7 @@ export const Route = createFileRoute("/api/results/$projectId")({
           const payload = await readResultPayload(results);
           return Response.json(payload);
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Falha ao carregar resultados";
-          return Response.json({ error: message }, { status: 500 });
+          return errorResponse(error, "Falha ao carregar resultados");
         }
       },
     },
@@ -20,15 +20,24 @@ export const Route = createFileRoute("/api/results/$projectId")({
 });
 
 async function readResultPayload(results: Awaited<ReturnType<typeof ensureProjectResults>>) {
+  const fs = await import("node:fs/promises");
   const path = await import("node:path");
+  const table = (name: string) => readCsv(path.join(results.tableDir, name));
 
-  const globalRows = await readCsv(path.join(results.tableDir, "resumo_global.csv"));
-  const summaryRows = await readCsv(path.join(results.tableDir, "resumo_por_arquivo.csv"));
-  const gapRows = await readCsv(path.join(results.tableDir, "gaps.csv"));
-  const spikeRows = await readCsv(path.join(results.tableDir, "spikes_detectados.csv"));
-  const psdRows = await readCsv(path.join(results.tableDir, "psd_welch.csv"));
-  const bandRows = await readCsv(path.join(results.tableDir, "energia_por_banda.csv"));
-  const eventRows = await readCsv(path.join(results.tableDir, "eventos_candidatos_sta_lta.csv"));
+  const [globalRows, summaryRows, gapRows, spikeRows, psdRows, bandRows, eventRows, qcRows] =
+    await Promise.all([
+      table("resumo_global.csv"),
+      table("resumo_por_arquivo.csv"),
+      table("gaps.csv"),
+      table("spikes_detectados.csv"),
+      table("psd_welch.csv"),
+      table("energia_por_banda.csv"),
+      table("eventos_candidatos_sta_lta.csv"),
+      table("indicadores_por_janela.csv"),
+    ]);
+  const metadata = JSON.parse(
+    await fs.readFile(path.join(results.tableDir, PARAMS_FILE), "utf8"),
+  ) as ProcessingMetadata;
 
   const global = globalRows[0] ?? {};
   const summary = summaryRows.map((row, index) => ({
@@ -52,13 +61,16 @@ async function readResultPayload(results: Awaited<ReturnType<typeof ensureProjec
     peakAbs: number(row.peak_abs),
   }));
 
-  const psd = downsample(psdRows, 900).map((row) => ({
-    f: number(row.frequency_hz),
-    raw: number(row.psd_raw),
-    processed: number(row.psd_processed),
-    rawLog: log10(number(row.psd_raw)),
-    processedLog: log10(number(row.psd_processed)),
-  }));
+  const psd = downsamplePsd(
+    psdRows
+      .map((row) => ({
+        f: number(row.frequency_hz),
+        raw: number(row.psd_raw),
+        processed: number(row.psd_processed),
+      }))
+      .filter((row) => row.f > 0),
+    900,
+  ).map((row) => ({ ...row, rawLog: log10(row.raw), processedLog: log10(row.processed) }));
 
   return {
     global: {
@@ -72,21 +84,63 @@ async function readResultPayload(results: Awaited<ReturnType<typeof ensureProjec
       max: number(global.max),
       mean: number(global.mean),
       std: number(global.std),
+      // Absent in results written before the audit (section 7).
+      stdDespiked: nullableNumber(global.std_despiked),
+      psdRawSource: text(global.psd_raw_source) || "raw",
       median: number(global.median),
       mad: number(global.mad),
       p01: number(global.p01),
       p99: number(global.p99),
       numberOfGaps: number(global.number_of_gaps),
+      numberOfOverlaps: number(global.number_of_overlaps),
+      filledSamples: number(global.filled_samples),
+      gapFill: text(global.gap_fill),
+      spikeMethod: text(global.spike_method),
+      spikeThresholdRobustZ: number(global.spike_threshold_robust_z),
       spikesDetected: number(global.spikes_detected),
+      spikeClusters: number(global.spike_clusters),
       preprocessing: text(global.preprocessing),
       taperSeconds: number(global.taper_seconds),
+      // Results written before the filter types existed: bandpass/Butterworth, no notch.
+      filterType:
+        text(global.filter_type) ||
+        (nullableNumber(global.freqmin_hz) === null && nullableNumber(global.freqmax_hz) === null
+          ? "none"
+          : "bandpass"),
+      filterFamily: text(global.filter_family) || "butterworth",
+      freqminHz: nullableNumber(global.freqmin_hz),
+      freqmaxHz: nullableNumber(global.freqmax_hz),
+      filterOrder: number(global.filter_order),
+      notchFreqsHz: text(global.notch_freqs_hz)
+        .split(";")
+        .map(Number)
+        .filter((value) => Number.isFinite(value) && value > 0),
+      notchQ: nullableNumber(global.notch_q),
+      zeroPhase: bool(global.zero_phase),
+      staltaMethod: text(global.stalta_method),
+      staS: number(global.sta_s),
+      ltaS: number(global.lta_s),
+      triggerOn: number(global.trigger_on),
+      triggerOff: number(global.trigger_off),
+      // Absent in results written before the low-SNR options: flag off, nothing discarded.
+      lowSnrThreshold: nullableNumber(global.low_snr_threshold),
+      eventsLowSnr: number(global.events_low_snr),
+      minEventSnr: number(global.min_event_snr),
+      eventsDiscardedLowSnr: number(global.events_discarded_low_snr),
     },
     summary,
-    overview: summary.map((row, index) => ({
-      minute: index,
-      std: row.std,
-      p99Abs: row.p99Abs,
-      peakAbs: row.peakAbs,
+    qcWindows: qcRows.map((row) => ({
+      index: number(row.window_index),
+      startUtc: text(row.starttime_utc),
+      secondsFromBeginning: number(row.seconds_from_beginning),
+      durationS: number(row.duration_s),
+      std: number(row.std),
+      p99AbsDev: number(row.p99_abs_dev),
+      peakAbsDev: number(row.peak_abs_dev),
+      rmsProcessed: number(row.rms_processed),
+      spikeCount: number(row.spike_count),
+      filledFraction: number(row.filled_fraction),
+      flatline: bool(row.flatline),
     })),
     gaps: gapRows.map((row) => ({
       network: text(row.network),
@@ -97,20 +151,23 @@ async function readResultPayload(results: Awaited<ReturnType<typeof ensureProjec
       endUtc: text(row.gap_end),
       durationS: number(row.gap_duration_s),
       missingSamples: number(row.missing_samples),
+      type: text(row.type) || "gap",
     })),
     spikes: spikeRows.map((row) => ({
       sample: number(row.sample),
       timeUtc: text(row.time_utc),
       secondsFromBeginning: number(row.seconds_from_beginning),
-      hour: number(row.seconds_from_beginning) / 3600,
       rawAmplitude: number(row.raw_amplitude),
       absAmplitude: Math.abs(number(row.raw_amplitude)),
+      spikeId: number(row.spike_id),
     })),
     psd,
     bandEnergy: bandRows.map((row) => ({
       band: text(row.band_hz),
       energyRaw: number(row.energy_raw),
       energyProcessed: number(row.energy_processed),
+      percentRaw: nullableNumber(row.percent_raw),
+      percentProcessed: nullableNumber(row.percent_processed),
     })),
     events: eventRows.map((row) => ({
       eventId: number(row.event_id),
@@ -118,69 +175,56 @@ async function readResultPayload(results: Awaited<ReturnType<typeof ensureProjec
       sampleOff: number(row.sample_off),
       startUtc: text(row.starttime_utc),
       endUtc: text(row.endtime_utc),
+      peakUtc: text(row.peak_time_utc),
       startSecondsFromBeginning: number(row.start_seconds_from_beginning),
-      startHour: number(row.start_seconds_from_beginning) / 3600,
       durationS: number(row.duration_s),
       maxStaLta: number(row.max_sta_lta),
       maxAbsAmplitudeFiltered: number(row.max_abs_amplitude_filtered),
       rmsFiltered: number(row.rms_filtered),
+      snr: nullableNumber(row.snr),
+      dominantFrequencyHz: nullableNumber(row.dominant_frequency_hz),
+      qcFlags: text(row.qc_flags),
     })),
+    run: {
+      generatedAtUtc: metadata.generated_at_utc ?? "",
+      runtimeS: metadata.result?.runtime_s ?? null,
+      software: metadata.software ?? {},
+      files: metadata.input?.files ?? [],
+      parameters: metadata.parameters ?? {},
+      warnings: metadata.warnings ?? [],
+    },
     figures: results.figures,
   };
 }
 
-async function readCsv(filePath: string) {
-  const fs = await import("node:fs/promises");
-  const content = await fs.readFile(filePath, "utf8");
-  const lines = content.trim().split(/\r?\n/);
-  if (lines.length <= 1) return [];
-
-  const headers = parseCsvLine(lines[0]);
-  return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
-    return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
-  });
+interface ProcessingMetadata {
+  generated_at_utc?: string;
+  software?: Record<string, string>;
+  input?: { files?: string[]; trace_id?: string };
+  parameters?: Record<string, unknown>;
+  warnings?: string[];
+  result?: { runtime_s?: number };
 }
 
-function parseCsvLine(line: string) {
-  const values: string[] = [];
-  let current = "";
-  let quoted = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const next = line[i + 1];
-
-    if (char === '"' && quoted && next === '"') {
-      current += '"';
-      i += 1;
-    } else if (char === '"') {
-      quoted = !quoted;
-    } else if (char === "," && !quoted) {
-      values.push(current);
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-
-  values.push(current);
-  return values;
-}
-
-function downsample<T>(rows: T[], maxPoints: number) {
+/**
+ * Block maximum instead of taking every n-th row: narrow spectral lines (60 Hz mains hum,
+ * a single Welch bin wide) would otherwise disappear from the chart, or seem removed by a
+ * notch that never ran.
+ */
+function downsamplePsd(rows: { f: number; raw: number; processed: number }[], maxPoints: number) {
   if (rows.length <= maxPoints) return rows;
   const step = Math.ceil(rows.length / maxPoints);
-  return rows.filter((_, index) => index % step === 0);
-}
-
-function text(value: unknown) {
-  return typeof value === "string" ? value : "";
-}
-
-function number(value: unknown) {
-  const parsed = typeof value === "string" ? Number(value) : Number.NaN;
-  return Number.isFinite(parsed) ? parsed : 0;
+  const out: typeof rows = [];
+  for (let i = 0; i < rows.length; i += step) {
+    const block = rows.slice(i, i + step);
+    const peak = block.reduce((best, row) => (row.raw > best.raw ? row : best), block[0]);
+    out.push({
+      f: peak.f,
+      raw: peak.raw,
+      processed: Math.max(...block.map((row) => row.processed)),
+    });
+  }
+  return out;
 }
 
 function log10(value: number) {

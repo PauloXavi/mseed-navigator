@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Waves } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { createProject } from "@/services/projects";
 export const Route = createFileRoute("/projects/new")({
   head: () => ({
     meta: [
-      { title: "Novo projeto — mSEED Navigator" },
+      { title: "Novo projeto — miniSEED Studio" },
       { name: "description", content: "Crie um novo projeto de análise microssísmica." },
     ],
   }),
@@ -37,10 +37,11 @@ function NewProjectPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-6 py-4">
-          <div className="flex h-12 w-16 items-center justify-center gap-1 rounded-md border bg-muted text-foreground shadow-sm">
-            <Waves className="h-5 w-5 text-primary" aria-hidden="true" />
-            <span className="text-sm font-semibold">MS</span>
-          </div>
+          <img
+            src="/logo-mark.png"
+            alt="miniSEED Studio"
+            className="h-12 w-12 shrink-0 object-contain"
+          />
           <div className="flex-1">
             <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
               <ArrowLeft className="mr-1 inline h-3 w-3" />

@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
-  CSV_FILES,
   FIGURE_FILES,
+  TABLE_FILES,
   ensureProjectResults,
+  errorResponse,
   runProcess,
 } from "@/server/backend-results";
 
@@ -29,8 +30,7 @@ export const Route = createFileRoute("/api/exports/$projectId/$kind")({
             },
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Falha ao preparar download";
-          return Response.json({ error: message }, { status: 500 });
+          return errorResponse(error, "Falha ao preparar download");
         }
       },
     },
@@ -49,41 +49,44 @@ async function buildExportZip(projectId: string, kind: ExportKind) {
   const filename = `miniseed-${projectId}-${kind}.zip`;
   const zipPath = path.join(tempDir, filename);
 
-  if (kind === "csv") {
-    await runProcess(
-      "zip",
-      ["-j", "-q", zipPath, ...results.csvFiles],
-      {
-        cwd: results.outputDir,
-      },
-      spawn,
-    );
-  } else if (kind === "figures") {
-    await runProcess(
-      "zip",
-      ["-j", "-q", zipPath, ...results.figureFiles],
-      {
-        cwd: results.outputDir,
-      },
-      spawn,
-    );
-  } else {
-    await runProcess(
-      "zip",
-      [
-        "-q",
-        zipPath,
-        ...CSV_FILES.map((name) => `tabelas/${name}`),
-        ...FIGURE_FILES.map((name) => `figuras/${name}`),
-      ],
-      {
-        cwd: results.outputDir,
-      },
-      spawn,
-    );
+  // The temporary folder goes away on failure too (a failed zip used to leave it behind).
+  try {
+    if (kind === "csv") {
+      await runProcess(
+        "zip",
+        ["-j", "-q", zipPath, ...results.tableFiles],
+        {
+          cwd: results.outputDir,
+        },
+        spawn,
+      );
+    } else if (kind === "figures") {
+      await runProcess(
+        "zip",
+        ["-j", "-q", zipPath, ...results.figureFiles],
+        {
+          cwd: results.outputDir,
+        },
+        spawn,
+      );
+    } else {
+      await runProcess(
+        "zip",
+        [
+          "-q",
+          zipPath,
+          ...TABLE_FILES.map((name) => `tabelas/${name}`),
+          ...FIGURE_FILES.map((name) => `figuras/${name}`),
+        ],
+        {
+          cwd: results.outputDir,
+        },
+        spawn,
+      );
+    }
+    const buffer = await fs.readFile(zipPath);
+    return { buffer, filename };
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
   }
-
-  const buffer = await fs.readFile(zipPath);
-  await fs.rm(tempDir, { recursive: true, force: true });
-  return { buffer, filename };
 }

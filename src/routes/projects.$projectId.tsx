@@ -1,23 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  BarChart3,
-  Download,
-  FileText,
-  LineChart,
-  Play,
-  Upload,
-  Waves,
-} from "lucide-react";
+import { ArrowLeft, BarChart3, Download, FileText, LineChart, Play, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/sonner";
 import { ProjectStatusBadge } from "@/components/status-badges";
-import { getProject } from "@/services/projects";
-import { DEFAULT_PARAMETERS, type Project } from "@/services/types";
-import { getActiveJob, startProcessingJob } from "@/services/processing";
+import { getProject, updateProject } from "@/services/projects";
+import type { Project } from "@/services/types";
+import { getActiveJob, getLastParameters, startProcessingJob } from "@/services/processing";
 import { formatRelative } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -31,7 +22,7 @@ import { ExportTab } from "@/components/project/export-tab";
 export const Route = createFileRoute("/projects/$projectId")({
   head: () => ({
     meta: [
-      { title: "Projeto — mSEED Navigator" },
+      { title: "Projeto — miniSEED Studio" },
       { name: "description", content: "Ambiente de análise MiniSEED do projeto." },
     ],
   }),
@@ -65,39 +56,55 @@ function ProjectPage() {
     }
   }, [projectId, navigate, refreshKey]);
 
-  const handleFilesLoaded = useCallback((count: number) => {
-    setProject((current) =>
-      current && current.fileCount !== count ? { ...current, fileCount: count } : current,
-    );
-  }, []);
+  const handleJobChange = useCallback(() => {
+    const updated = getProject(projectId);
+    if (updated) setProject(updated);
+  }, [projectId]);
+
+  const handleFilesLoaded = useCallback(
+    (count: number) => {
+      // Persisted so the header and the project list keep the count after a reload.
+      if (getProject(projectId)?.fileCount !== count)
+        updateProject(projectId, { fileCount: count });
+      setProject((current) =>
+        current && current.fileCount !== count ? { ...current, fileCount: count } : current,
+      );
+    },
+    [projectId],
+  );
 
   if (!project) return null;
 
-  function handleProcessSelection(fileIds: string[]) {
+  async function handleProcessSelection(files: { fileIds: string[]; fileNames: string[] }) {
     const activeJob = getActiveJob(projectId);
     if (activeJob) {
       setTab("processing");
       toast.info("Já existe um processamento em andamento", {
-        description: "Acompanhe ou pause o job atual antes de iniciar outro.",
+        description: "Acompanhe ou cancele o job atual antes de iniciar outro.",
       });
       return;
     }
 
-    startProcessingJob({
-      projectId,
-      mode: "selected",
-      fileIds,
-      parameters: {
-        ...DEFAULT_PARAMETERS,
-        steps: { ...DEFAULT_PARAMETERS.steps },
-      },
-    });
+    try {
+      await startProcessingJob({
+        projectId,
+        mode: "selected",
+        fileIds: files.fileIds,
+        fileNames: files.fileNames,
+        parameters: getLastParameters(projectId),
+      });
+    } catch (error) {
+      toast.error("Não foi possível iniciar o processamento", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+      return;
+    }
     const updatedProject = getProject(projectId);
     if (updatedProject) setProject(updatedProject);
     setProcessingViewKey((key) => key + 1);
     setTab("processing");
     toast.success("Processamento iniciado", {
-      description: `${fileIds.length} arquivo(s) selecionado(s).`,
+      description: `${files.fileIds.length} arquivo(s) selecionado(s).`,
     });
   }
 
@@ -108,10 +115,10 @@ function ProjectPage() {
         <div className="mx-auto flex max-w-[1400px] items-center gap-4 px-6 py-3">
           <Link
             to="/"
-            className="flex h-11 w-16 items-center justify-center gap-1 rounded-md border bg-muted text-foreground shadow-sm"
+            aria-label="miniSEED Studio: voltar aos projetos"
+            className="flex h-11 w-11 shrink-0 items-center justify-center"
           >
-            <Waves className="h-5 w-5 text-primary" aria-hidden="true" />
-            <span className="text-sm font-semibold">MS</span>
+            <img src="/logo-mark.png" alt="" className="h-full w-full object-contain" />
           </Link>
           <div className="flex-1 min-w-0">
             <Link
@@ -181,7 +188,12 @@ function ProjectPage() {
             <InspectionTab projectId={projectId} selection={selection} />
           </TabsContent>
           <TabsContent value="processing">
-            <ProcessingTab key={processingViewKey} projectId={projectId} selection={selection} />
+            <ProcessingTab
+              key={processingViewKey}
+              projectId={projectId}
+              selection={selection}
+              onJobChange={handleJobChange}
+            />
           </TabsContent>
           <TabsContent value="results">
             <ResultsTab projectId={projectId} />

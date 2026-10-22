@@ -28,7 +28,7 @@ const jobMap: Record<JobStatus, { label: string; className: string }> = {
 };
 
 export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
-  const cfg = projectMap[status];
+  const cfg = projectMap[status] ?? projectMap.created;
   return (
     <Badge variant="outline" className={cn("font-medium", cfg.className)}>
       {cfg.label}
@@ -37,7 +37,7 @@ export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
 }
 
 export function FileStatusBadge({ status }: { status: MseedFileStatus }) {
-  const cfg = fileMap[status];
+  const cfg = fileMap[status] ?? fileMap.pending;
   return (
     <Badge variant="outline" className={cn("font-medium", cfg.className)}>
       {cfg.label}

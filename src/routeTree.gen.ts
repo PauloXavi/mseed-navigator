@@ -10,13 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
-import { Route as ApiTimeseriesProjectIdRouteImport } from './routes/api/timeseries/$projectId'
-import { Route as ApiResultsProjectIdRouteImport } from './routes/api/results/$projectId'
-import { Route as ApiProjectsProjectIdRouteImport } from './routes/api/projects/$projectId'
-import { Route as ApiFilesProjectIdRouteImport } from './routes/api/files/$projectId'
+import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ApiFiguresGenerateRouteImport } from './routes/api/figures/generate'
+import { Route as ApiFilesProjectIdRouteImport } from './routes/api/files/$projectId'
+import { Route as ApiProcessProjectIdRouteImport } from './routes/api/process/$projectId'
+import { Route as ApiProjectsProjectIdRouteImport } from './routes/api/projects/$projectId'
+import { Route as ApiResultsProjectIdRouteImport } from './routes/api/results/$projectId'
+import { Route as ApiTimeseriesProjectIdRouteImport } from './routes/api/timeseries/$projectId'
 import { Route as ApiExportsProjectIdKindRouteImport } from './routes/api/exports/$projectId/$kind'
 
 const IndexRoute = IndexRouteImport.update({
@@ -24,29 +25,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjectsNewRoute = ProjectsNewRouteImport.update({
-  id: '/projects/new',
-  path: '/projects/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
   id: '/projects/$projectId',
   path: '/projects/$projectId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiTimeseriesProjectIdRoute = ApiTimeseriesProjectIdRouteImport.update({
-  id: '/api/timeseries/$projectId',
-  path: '/api/timeseries/$projectId',
+const ProjectsNewRoute = ProjectsNewRouteImport.update({
+  id: '/projects/new',
+  path: '/projects/new',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiResultsProjectIdRoute = ApiResultsProjectIdRouteImport.update({
-  id: '/api/results/$projectId',
-  path: '/api/results/$projectId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiProjectsProjectIdRoute = ApiProjectsProjectIdRouteImport.update({
-  id: '/api/projects/$projectId',
-  path: '/api/projects/$projectId',
+const ApiFiguresGenerateRoute = ApiFiguresGenerateRouteImport.update({
+  id: '/api/figures/generate',
+  path: '/api/figures/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFilesProjectIdRoute = ApiFilesProjectIdRouteImport.update({
@@ -54,9 +45,24 @@ const ApiFilesProjectIdRoute = ApiFilesProjectIdRouteImport.update({
   path: '/api/files/$projectId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiFiguresGenerateRoute = ApiFiguresGenerateRouteImport.update({
-  id: '/api/figures/generate',
-  path: '/api/figures/generate',
+const ApiProcessProjectIdRoute = ApiProcessProjectIdRouteImport.update({
+  id: '/api/process/$projectId',
+  path: '/api/process/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectsProjectIdRoute = ApiProjectsProjectIdRouteImport.update({
+  id: '/api/projects/$projectId',
+  path: '/api/projects/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiResultsProjectIdRoute = ApiResultsProjectIdRouteImport.update({
+  id: '/api/results/$projectId',
+  path: '/api/results/$projectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTimeseriesProjectIdRoute = ApiTimeseriesProjectIdRouteImport.update({
+  id: '/api/timeseries/$projectId',
+  path: '/api/timeseries/$projectId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiExportsProjectIdKindRoute = ApiExportsProjectIdKindRouteImport.update({
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/projects/new': typeof ProjectsNewRoute
   '/api/figures/generate': typeof ApiFiguresGenerateRoute
   '/api/files/$projectId': typeof ApiFilesProjectIdRoute
+  '/api/process/$projectId': typeof ApiProcessProjectIdRoute
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRoute
   '/api/results/$projectId': typeof ApiResultsProjectIdRoute
   '/api/timeseries/$projectId': typeof ApiTimeseriesProjectIdRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/projects/new': typeof ProjectsNewRoute
   '/api/figures/generate': typeof ApiFiguresGenerateRoute
   '/api/files/$projectId': typeof ApiFilesProjectIdRoute
+  '/api/process/$projectId': typeof ApiProcessProjectIdRoute
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRoute
   '/api/results/$projectId': typeof ApiResultsProjectIdRoute
   '/api/timeseries/$projectId': typeof ApiTimeseriesProjectIdRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/projects/new': typeof ProjectsNewRoute
   '/api/figures/generate': typeof ApiFiguresGenerateRoute
   '/api/files/$projectId': typeof ApiFilesProjectIdRoute
+  '/api/process/$projectId': typeof ApiProcessProjectIdRoute
   '/api/projects/$projectId': typeof ApiProjectsProjectIdRoute
   '/api/results/$projectId': typeof ApiResultsProjectIdRoute
   '/api/timeseries/$projectId': typeof ApiTimeseriesProjectIdRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/api/figures/generate'
     | '/api/files/$projectId'
+    | '/api/process/$projectId'
     | '/api/projects/$projectId'
     | '/api/results/$projectId'
     | '/api/timeseries/$projectId'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/api/figures/generate'
     | '/api/files/$projectId'
+    | '/api/process/$projectId'
     | '/api/projects/$projectId'
     | '/api/results/$projectId'
     | '/api/timeseries/$projectId'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/api/figures/generate'
     | '/api/files/$projectId'
+    | '/api/process/$projectId'
     | '/api/projects/$projectId'
     | '/api/results/$projectId'
     | '/api/timeseries/$projectId'
@@ -141,6 +153,7 @@ export interface RootRouteChildren {
   ProjectsNewRoute: typeof ProjectsNewRoute
   ApiFiguresGenerateRoute: typeof ApiFiguresGenerateRoute
   ApiFilesProjectIdRoute: typeof ApiFilesProjectIdRoute
+  ApiProcessProjectIdRoute: typeof ApiProcessProjectIdRoute
   ApiProjectsProjectIdRoute: typeof ApiProjectsProjectIdRoute
   ApiResultsProjectIdRoute: typeof ApiResultsProjectIdRoute
   ApiTimeseriesProjectIdRoute: typeof ApiTimeseriesProjectIdRoute
@@ -156,13 +169,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projects/new': {
-      id: '/projects/new'
-      path: '/projects/new'
-      fullPath: '/projects/new'
-      preLoaderRoute: typeof ProjectsNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/projects/$projectId': {
       id: '/projects/$projectId'
       path: '/projects/$projectId'
@@ -170,25 +176,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/timeseries/$projectId': {
-      id: '/api/timeseries/$projectId'
-      path: '/api/timeseries/$projectId'
-      fullPath: '/api/timeseries/$projectId'
-      preLoaderRoute: typeof ApiTimeseriesProjectIdRouteImport
+    '/projects/new': {
+      id: '/projects/new'
+      path: '/projects/new'
+      fullPath: '/projects/new'
+      preLoaderRoute: typeof ProjectsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/results/$projectId': {
-      id: '/api/results/$projectId'
-      path: '/api/results/$projectId'
-      fullPath: '/api/results/$projectId'
-      preLoaderRoute: typeof ApiResultsProjectIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/projects/$projectId': {
-      id: '/api/projects/$projectId'
-      path: '/api/projects/$projectId'
-      fullPath: '/api/projects/$projectId'
-      preLoaderRoute: typeof ApiProjectsProjectIdRouteImport
+    '/api/figures/generate': {
+      id: '/api/figures/generate'
+      path: '/api/figures/generate'
+      fullPath: '/api/figures/generate'
+      preLoaderRoute: typeof ApiFiguresGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/files/$projectId': {
@@ -198,11 +197,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFilesProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/figures/generate': {
-      id: '/api/figures/generate'
-      path: '/api/figures/generate'
-      fullPath: '/api/figures/generate'
-      preLoaderRoute: typeof ApiFiguresGenerateRouteImport
+    '/api/process/$projectId': {
+      id: '/api/process/$projectId'
+      path: '/api/process/$projectId'
+      fullPath: '/api/process/$projectId'
+      preLoaderRoute: typeof ApiProcessProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/projects/$projectId': {
+      id: '/api/projects/$projectId'
+      path: '/api/projects/$projectId'
+      fullPath: '/api/projects/$projectId'
+      preLoaderRoute: typeof ApiProjectsProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/results/$projectId': {
+      id: '/api/results/$projectId'
+      path: '/api/results/$projectId'
+      fullPath: '/api/results/$projectId'
+      preLoaderRoute: typeof ApiResultsProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/timeseries/$projectId': {
+      id: '/api/timeseries/$projectId'
+      path: '/api/timeseries/$projectId'
+      fullPath: '/api/timeseries/$projectId'
+      preLoaderRoute: typeof ApiTimeseriesProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/exports/$projectId/$kind': {
@@ -221,6 +241,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsNewRoute: ProjectsNewRoute,
   ApiFiguresGenerateRoute: ApiFiguresGenerateRoute,
   ApiFilesProjectIdRoute: ApiFilesProjectIdRoute,
+  ApiProcessProjectIdRoute: ApiProcessProjectIdRoute,
   ApiProjectsProjectIdRoute: ApiProjectsProjectIdRoute,
   ApiResultsProjectIdRoute: ApiResultsProjectIdRoute,
   ApiTimeseriesProjectIdRoute: ApiTimeseriesProjectIdRoute,

@@ -19,8 +19,14 @@ def make_trace() -> Trace:
         + 0.015 * rng.normal(size=npts)
     )
 
+    # Transientes de banda limitada: devem ser preservados e detectados pelo STA/LTA.
     for center_s, amplitude, width_s in [(45.0, 4.5, 0.12), (118.0, -3.8, 0.16)]:
         signal += amplitude * np.exp(-0.5 * ((t - center_s) / width_s) ** 2)
+
+    # Glitches instrumentais de 1-2 amostras: devem ser removidos pelo despike.
+    for start_s, amplitude, width in [(75.3, 3.0, 1), (152.7, -2.5, 2)]:
+        index = int(round(start_s * sampling_rate))
+        signal[index : index + width] += amplitude
 
     data = np.round(signal * 1_000_000).astype(np.int32)
     trace = Trace(data=data)

@@ -49,6 +49,16 @@ export function UploadTab({ projectId, onExtracted }: Props) {
             Envie um arquivo <code className="font-mono text-xs">.zip</code> contendo registros
             MiniSEED. O conteúdo será descompactado e indexado.
           </CardDescription>
+          <p
+            role="note"
+            className="rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-foreground"
+          >
+            <b>Demonstração:</b> o upload ainda é simulado. Os arquivos enviados aqui não são
+            processados; o processamento usa sempre a pasta de dados do servidor:{" "}
+            <code className="font-mono">MSEED_DATA_DIR</code>, senão{" "}
+            <code className="font-mono">../dados</code>, senão os exemplos de{" "}
+            <code className="font-mono">examples/data</code>.
+          </p>
         </CardHeader>
         <CardContent>
           <div

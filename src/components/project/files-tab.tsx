@@ -4,6 +4,14 @@ import { Eye, FileText, Play, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -20,8 +28,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { HintLabel } from "@/components/info-hint";
 import { FileStatusBadge } from "@/components/status-badges";
-import { listFiles, readMiniSeedMetadata } from "@/services/files";
+import { useProjectFiles } from "@/hooks/use-project-files";
+import { readMiniSeedMetadata } from "@/services/files";
 import type { MseedFile, MseedFileStatus } from "@/services/types";
 import { formatBytes, formatDuration, formatUtc } from "@/lib/format";
 
@@ -29,7 +39,7 @@ interface Props {
   projectId: string;
   selection: string[];
   onSelectionChange: (ids: string[]) => void;
-  onProcessSelection: (ids: string[]) => void;
+  onProcessSelection: (files: { fileIds: string[]; fileNames: string[] }) => void;
   onFilesLoaded?: (count: number) => void;
 }
 
@@ -40,41 +50,14 @@ export function FilesTab({
   onProcessSelection,
   onFilesLoaded,
 }: Props) {
-  const [files, setFiles] = useState<MseedFile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { files, setFiles, loading } = useProjectFiles(projectId);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<MseedFileStatus | "all">("all");
   const [channel, setChannel] = useState<string>("all");
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    fetch(`/api/files/${projectId}`)
-      .then(async (response) => {
-        const payload = (await response.json()) as { files?: MseedFile[]; error?: string };
-        if (!response.ok) throw new Error(payload.error ?? "Falha ao carregar arquivos reais");
-        return payload.files ?? [];
-      })
-      .then((realFiles) => {
-        if (cancelled) return;
-        setFiles(realFiles);
-        onFilesLoaded?.(realFiles.length);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        const localFiles = listFiles(projectId);
-        setFiles(localFiles);
-        onFilesLoaded?.(localFiles.length);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [onFilesLoaded, projectId]);
+    if (!loading) onFilesLoaded?.(files.length);
+  }, [files.length, loading, onFilesLoaded]);
 
   useEffect(() => {
     if (files.length === 0 || selection.length === 0) return;
@@ -109,8 +92,24 @@ export function FilesTab({
   }
 
   async function handleRead() {
+    // Updates the status in place; replacing the list with the locally stored one would
+    // drop the files indexed by the backend.
     await readMiniSeedMetadata(projectId, selection);
-    setFiles(listFiles(projectId));
+    setFiles((current) =>
+      current.map((file) =>
+        selection.includes(file.id) && file.status === "pending"
+          ? { ...file, status: "read" }
+          : file,
+      ),
+    );
+  }
+
+  function handleProcess() {
+    const selected = files.filter((file) => selection.includes(file.id));
+    onProcessSelection({
+      fileIds: selected.map((file) => file.id),
+      fileNames: selected.map((file) => file.fileName),
+    });
   }
 
   if (loading) {
@@ -135,7 +134,9 @@ export function FilesTab({
     <Card>
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>Arquivos MiniSEED</CardTitle>
+          <CardTitle>
+            <HintLabel term="miniseed">Arquivos MiniSEED</HintLabel>
+          </CardTitle>
           <div className="text-xs text-muted-foreground">
             {selection.length} de {files.length} selecionados
           </div>
@@ -184,15 +185,8 @@ export function FilesTab({
             <Eye className="mr-2 h-4 w-4" />
             Ler selecionados
           </Button>
-          <Button size="sm" variant="outline" disabled={selection.length === 0}>
-            <FileText className="mr-2 h-4 w-4" />
-            Ver metadados
-          </Button>
-          <Button
-            size="sm"
-            disabled={selection.length === 0}
-            onClick={() => onProcessSelection(selection)}
-          >
+          <MetadataDialog files={files.filter((file) => selection.includes(file.id))} />
+          <Button size="sm" disabled={selection.length === 0} onClick={handleProcess}>
             <Play className="mr-2 h-4 w-4" />
             Processar seleção
           </Button>
@@ -207,12 +201,20 @@ export function FilesTab({
                   <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                 </TableHead>
                 <TableHead>Nome</TableHead>
-                <TableHead>Rede</TableHead>
-                <TableHead>Estação</TableHead>
-                <TableHead>Canal</TableHead>
+                <TableHead>
+                  <HintLabel term="network">Rede</HintLabel>
+                </TableHead>
+                <TableHead>
+                  <HintLabel term="station">Estação</HintLabel>
+                </TableHead>
+                <TableHead>
+                  <HintLabel term="channel">Canal</HintLabel>
+                </TableHead>
                 <TableHead>Início UTC</TableHead>
                 <TableHead>Duração</TableHead>
-                <TableHead>Hz</TableHead>
+                <TableHead>
+                  <HintLabel term="samplingRate">Hz</HintLabel>
+                </TableHead>
                 <TableHead>Tamanho</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -245,6 +247,75 @@ export function FilesTab({
       </CardContent>
     </Card>
   );
+}
+
+function MetadataDialog({ files }: { files: MseedFile[] }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" disabled={files.length === 0}>
+          <FileText className="mr-2 h-4 w-4" />
+          Ver metadados
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Metadados MiniSEED</DialogTitle>
+          <DialogDescription>
+            Cabeçalho e estatísticas de amplitude (contagens) dos arquivos selecionados.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Arquivo</TableHead>
+                <TableHead>
+                  <HintLabel term="trace">Trace</HintLabel>
+                </TableHead>
+                <TableHead>Início / fim UTC</TableHead>
+                <TableHead>
+                  <HintLabel term="samplingRate">Hz</HintLabel>
+                </TableHead>
+                <TableHead>N pontos</TableHead>
+                <TableHead>Mín / Máx</TableHead>
+                <TableHead>Média</TableHead>
+                <TableHead>Std</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {files.map((f) => (
+                <TableRow key={f.id}>
+                  <TableCell className="font-mono text-xs">{f.fileName}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {[f.network, f.station, f.location, f.channel].join(".")}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {formatUtc(f.starttimeUtc)}
+                    <br />
+                    {formatUtc(f.endtimeUtc)}
+                  </TableCell>
+                  <TableCell>{f.samplingRateHz}</TableCell>
+                  <TableCell>{f.npts.toLocaleString()}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {formatStat(f.min)} / {formatStat(f.max)}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{formatStat(f.mean)}</TableCell>
+                  <TableCell className="font-mono text-xs">{formatStat(f.std)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function formatStat(value: number | undefined) {
+  return Number.isFinite(value)
+    ? (value as number).toLocaleString(undefined, { maximumFractionDigits: 1 })
+    : "—";
 }
 
 function EmptyFiles() {

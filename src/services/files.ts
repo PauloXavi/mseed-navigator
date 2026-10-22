@@ -2,18 +2,18 @@
 // Real backend: scan extracted archive, run obspy.read for metadata.
 
 import type { MseedFile, MseedFileStatus } from "./types";
-import { readKey, writeKey } from "./store";
+import { readList, writeKey } from "./store";
 
 const KEY = "mss.files";
 
 export function listFiles(projectId: string): MseedFile[] {
-  return readKey<MseedFile[]>(KEY, [])
+  return readList<MseedFile>(KEY)
     .filter((f) => f.projectId === projectId)
     .sort((a, b) => a.starttimeUtc.localeCompare(b.starttimeUtc));
 }
 
 export function writeFiles(projectId: string, files: MseedFile[]) {
-  const all = readKey<MseedFile[]>(KEY, []).filter((f) => f.projectId !== projectId);
+  const all = readList<MseedFile>(KEY).filter((f) => f.projectId !== projectId);
   writeKey(KEY, [...all, ...files]);
 }
 
@@ -26,7 +26,7 @@ export async function readMiniSeedMetadata(
   projectId: string,
   fileIds: string[],
 ): Promise<MseedFile[]> {
-  const all = readKey<MseedFile[]>(KEY, []);
+  const all = readList<MseedFile>(KEY);
   const updated = all.map((f) =>
     f.projectId === projectId && fileIds.includes(f.id)
       ? { ...f, status: "read" as MseedFileStatus }
@@ -38,7 +38,7 @@ export async function readMiniSeedMetadata(
 }
 
 export function markFilesStatus(projectId: string, fileIds: string[], status: MseedFileStatus) {
-  const all = readKey<MseedFile[]>(KEY, []);
+  const all = readList<MseedFile>(KEY);
   writeKey(
     KEY,
     all.map((f) => (f.projectId === projectId && fileIds.includes(f.id) ? { ...f, status } : f)),
